@@ -9,10 +9,28 @@ let doc = Context.environment["MOCKABLE_DOC"].flatMap(Bool.init) ?? false
 
 func when<T>(_ condition: Bool, _ list: [T]) -> [T] { condition ? list : [] }
 
+// xctest-dynamic-overlay was renamed to swift-issue-reporting. Both URLs declare an
+// `IssueReporting` target and cannot coexist in one graph, and the Point-Free ecosystem
+// only moves to the new URL from Swift 6.4 on, so follow the same split.
+#if compiler(>=6.4)
+let issueReportingPackage: Package.Dependency = .package(
+    url: "https://github.com/pointfreeco/swift-issue-reporting", from: "2.1.0"
+)
+let issueReportingProduct: Target.Dependency = .product(
+    name: "IssueReporting", package: "swift-issue-reporting"
+)
+#else
 #if swift(>=6.0)
 let xctestDynamicOverlayVersion: Range<Version> = "1.6.1"..<"2.0.0"
 #else
 let xctestDynamicOverlayVersion: Range<Version> = "1.6.1"..<"1.10.0"
+#endif
+let issueReportingPackage: Package.Dependency = .package(
+    url: "https://github.com/pointfreeco/xctest-dynamic-overlay", xctestDynamicOverlayVersion
+)
+let issueReportingProduct: Target.Dependency = .product(
+    name: "IssueReporting", package: "xctest-dynamic-overlay"
+)
 #endif
 
 let devDependencies: [Package.Dependency] = when(test, [
@@ -62,14 +80,14 @@ let package = Package(
         .package(url: "https://github.com/swiftlang/swift-syntax.git", "509.0.0"..<"604.0.0"),
         // xctest-dynamic-overlay 1.10.0 switched to `public import Foundation`, which Swift <6
         // rejects when mixed with plain `import Foundation` in the same target.
-        .package(url: "https://github.com/pointfreeco/xctest-dynamic-overlay", xctestDynamicOverlayVersion)
+        issueReportingPackage
     ],
     targets: devTargets + [
         .target(
             name: "Mockable",
             dependencies: [
                 "MockableMacro",
-                .product(name: "IssueReporting", package: "xctest-dynamic-overlay")
+                issueReportingProduct
             ],
             swiftSettings: [
                 .enableExperimentalFeature("StrictConcurrency"),
